@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
+import javax.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.poll.exeption.ResourceNotFoundException;
 import com.poll.model.Option;
 import com.poll.model.Poll;
 import com.poll.repository.PollRepository;
@@ -37,7 +40,7 @@ public class PollController
 	}
 	
 	@PostMapping("/")
-	public ResponseEntity<?> createPoll(@RequestBody Poll poll)
+	public ResponseEntity<?> createPoll(@Valid @RequestBody Poll poll)
 	{
 		for(Option option : poll.getOptions())
 		{
@@ -60,10 +63,8 @@ public class PollController
 	@GetMapping("/{pollId}")
 	public ResponseEntity<Poll> getPoll(@PathVariable("pollId") long pollId)
 	{
-		Optional<Poll> optional = pollRepository.findById(pollId);
-		Poll poll = optional.get();
+		Poll poll = verifyPoll(pollId);
 		
-		System.out.println("\n\n\n\n" + poll + "\n\n\n\n");
 		return new ResponseEntity<Poll>(poll, HttpStatus.OK);
 		
 	}
@@ -72,6 +73,7 @@ public class PollController
 	@DeleteMapping("/{pollId}")
 	public ResponseEntity<?> deletePoll(@PathVariable("pollId") long pollId)
 	{
+		verifyPoll(pollId);
 		pollRepository.deleteById(pollId);
 		
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -80,11 +82,27 @@ public class PollController
 	@PutMapping("/{pollId}")
 	public ResponseEntity<Poll> updatePoll(@PathVariable("pollId") long pollId, @RequestBody Poll poll)
 	{
+		verifyPoll(pollId);
+		poll.setId(pollId);
+		for(Option option : poll.getOptions())
+		{
+			option.setPoll(poll);
+		}
 		Poll updatedPoll = pollRepository.save(poll);
 		
 		return new ResponseEntity<Poll>(updatedPoll, HttpStatus.OK);
 	}
 	
+	
+	private Poll verifyPoll(long pollId) throws ResourceNotFoundException
+	{
+		Poll poll = pollRepository.findById(pollId).orElse(null);
+		
+		if(poll == null)
+			throw new ResourceNotFoundException("Poll with id=" + pollId + " not found.");
+		
+		return poll;
+	}
 	
 	
 
